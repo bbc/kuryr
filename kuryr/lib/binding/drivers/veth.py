@@ -26,6 +26,7 @@ from kuryr.lib import utils as lib_utils
 
 KIND = 'veth'
 LOG = log.getLogger(__name__)
+ROOT_HELPER = cfg.CONF.root_helper
 
 
 def port_bind(endpoint_id, port, subnets, network=None, vm_port=None,
@@ -114,7 +115,8 @@ def port_unbind(endpoint_id, neutron_port, **kwargs):
     network_id = neutron_port['network_id']
     stdout, stderr = processutils.execute(
         unbinding_exec_path, constants.UNBINDING_SUBCOMMAND, port_id, ifname,
-        endpoint_id, mac_address, vif_details, network_id, run_as_root=True)
+        endpoint_id, mac_address, vif_details, network_id, run_as_root=True,
+        root_helper=ROOT_HELPER)
     try:
         utils.remove_device(ifname)
     except pyroute2.NetlinkError:
@@ -149,5 +151,5 @@ def _configure_host_iface(ifname, endpoint_id, port_id, net_id, project_id,
         binding_exec_path, constants.BINDING_SUBCOMMAND, port_id, ifname,
         endpoint_id, hwaddr, net_id, project_id,
         lib_utils.string_mappings(details),
-        run_as_root=True)
+        run_as_root=True, root_helper=ROOT_HELPER)
     return stdout, stderr

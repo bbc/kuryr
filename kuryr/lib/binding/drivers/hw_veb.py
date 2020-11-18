@@ -10,10 +10,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from oslo_config import cfg
 from oslo_concurrency import processutils
 
 from kuryr.lib.binding.drivers import utils
 from kuryr.lib import constants
+
+
+ROOT_HELPER = cfg.CONF.bindir
 
 
 def port_bind(endpoint_id, port, subnets, network=None, vm_port=None,
@@ -71,4 +75,5 @@ def _set_vf_interface_vlan(pf_ifname, vf_num, mac_addr, vlan=0):
                          'mac', mac_addr,
                          'vlan', vlan,
                          run_as_root=True,
+                         root_helper=ROOT_HELPER,
                          check_exit_code=exit_code)

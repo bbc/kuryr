@@ -24,6 +24,8 @@ from kuryr.tests.unit import base
 mock_create = mock.MagicMock()
 mock_interface = mock.MagicMock()
 
+ROOT_HELPER = ''
+
 
 class TestHwVebDriver(base.TestCase):
     """Unit tests for hw_veb driver"""
@@ -64,6 +66,7 @@ class TestHwVebDriver(base.TestCase):
             'mac', fake_port['port']['mac_address'],
             'vlan', fake_vlan_id,
             run_as_root=True,
+            root_helper=ROOT_HELPER,
             check_exit_code=[0, 2, 254])
 
     @mock.patch('oslo_concurrency.processutils.execute',
@@ -92,4 +95,5 @@ class TestHwVebDriver(base.TestCase):
             'mac', fake_port['port']['mac_address'],
             'vlan', 0,
             run_as_root=True,
+            root_helper=ROOT_HELPER,
             check_exit_code=[0, 2, 254])

@@ -31,6 +31,10 @@ core_opts = [
                default='baremetal',
                help=_("baremetal or nested-containers are the supported"
                       " values.")),
+    cfg.StrOpt('root_helper',
+               default='',
+               help=_('Command to execute in order to obtain elevated'
+                      ' privileges.')),
 ]
 
 neutron_group = cfg.OptGroup(
