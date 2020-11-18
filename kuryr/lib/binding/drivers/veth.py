@@ -9,12 +9,8 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-import os
-
 import pyroute2
 
-from oslo_concurrency import processutils
-from oslo_config import cfg
 from oslo_log import log
 from oslo_utils import excutils
 
@@ -22,6 +18,7 @@ from kuryr.lib.binding.drivers import utils
 from kuryr.lib import constants
 from kuryr.lib import exceptions
 from kuryr.lib import utils as lib_utils
+from kuryr.privsep.ports import _configure_host_iface, _unbind_host_iface
 
 
 KIND = 'veth'
@@ -105,16 +102,15 @@ def port_unbind(endpoint_id, neutron_port, **kwargs):
                                 constants.FALLBACK_VIF_TYPE)
     vif_details = lib_utils.string_mappings(neutron_port.get(
                                             constants.VIF_DETAILS_KEY))
-    unbinding_exec_path = os.path.join(cfg.CONF.bindir, vif_type)
 
     port_id = neutron_port['id']
     ifname, _ = utils.get_veth_pair_names(port_id)
 
     mac_address = neutron_port['mac_address']
     network_id = neutron_port['network_id']
-    stdout, stderr = processutils.execute(
-        unbinding_exec_path, constants.UNBINDING_SUBCOMMAND, port_id, ifname,
-        endpoint_id, mac_address, vif_details, network_id, run_as_root=True)
+    stdout, stderr = _unbind_host_iface(ifname, endpoint_id, port_id,
+                                        network_id, mac_address, vif_type,
+                                        vif_details)
     try:
         utils.remove_device(ifname)
     except pyroute2.NetlinkError:
@@ -122,32 +118,3 @@ def port_unbind(endpoint_id, neutron_port, **kwargs):
         raise exceptions.VethDeletionFailure(
             'Deleting the veth pair failed.')
     return (stdout, stderr)
-
-
-def _configure_host_iface(ifname, endpoint_id, port_id, net_id, project_id,
-                          hwaddr, kind=None, details=None):
-    """Configures the interface that is placed on the default net ns
-
-    :param ifname:      the name of the interface to configure
-    :param endpoint_id: the identifier of the endpoint
-    :param port_id:     the Neutron uuid of the port to which this interface
-                        is to be bound
-    :param net_id:      the Neutron uuid of the network the port is part of
-    :param project_id:  the Keystone project the binding is made for
-    :param hwaddr:      the interface hardware address
-    :param kind:        the Neutron port vif_type
-    :param details:     Neutron vif details
-    """
-    if kind is None:
-        kind = constants.FALLBACK_VIF_TYPE
-    binding_exec_path = os.path.join(cfg.CONF.bindir, kind)
-    if not os.path.exists(binding_exec_path):
-        raise exceptions.BindingNotSupportedFailure(
-            "vif_type({0}) is not supported. A binding script for this type "
-            "can't be found".format(kind))
-    stdout, stderr = processutils.execute(
-        binding_exec_path, constants.BINDING_SUBCOMMAND, port_id, ifname,
-        endpoint_id, hwaddr, net_id, project_id,
-        lib_utils.string_mappings(details),
-        run_as_root=True)
-    return stdout, stderr
