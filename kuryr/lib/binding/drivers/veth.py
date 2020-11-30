@@ -106,23 +106,48 @@ def port_unbind(endpoint_id, neutron_port, **kwargs):
                                 constants.FALLBACK_VIF_TYPE)
     vif_details = lib_utils.string_mappings(neutron_port.get(
                                             constants.VIF_DETAILS_KEY))
-    unbinding_exec_path = os.path.join(cfg.CONF.bindir, vif_type)
 
     port_id = neutron_port['id']
     ifname, _ = utils.get_veth_pair_names(port_id)
 
     mac_address = neutron_port['mac_address']
     network_id = neutron_port['network_id']
-    stdout, stderr = processutils.execute(
-        unbinding_exec_path, constants.UNBINDING_SUBCOMMAND, port_id, ifname,
-        endpoint_id, mac_address, vif_details, network_id, run_as_root=True,
-        root_helper=ROOT_HELPER)
+    stdout, stderr = _unbind_host_iface(ifname, endpoint_id, port_id,
+                                        network_id, mac_address, vif_type,
+                                        vif_details)
     try:
         utils.remove_device(ifname)
     except pyroute2.NetlinkError:
         LOG.exception("Error happened during deleting the veth pair")
         raise exceptions.VethDeletionFailure(
             'Deleting the veth pair failed.')
+    return (stdout, stderr)
+
+
+def _unbind_host_iface(ifname, endpoint_id, port_id, net_id, hwaddr, kind=None,
+                       details=None):
+    """Unbinds the interface
+
+    :param ifname:      the name of the interface to configure
+    :param endpoint_id: the identifier of the endpoint
+    :param port_id:     the Neutron uuid of the port to which this interface
+                        is to be unbound from
+    :param net_id:      the Neutron uuid of the network the port is part of
+    :param hwaddr:      the interface hardware address
+    :param kind:        the Neutron port vif_type
+    :param details:     Neutron vif details
+    """
+    if kind is None:
+        kind = constants.FALLBACK_VIF_TYPE
+    unbinding_exec_path = os.path.join(cfg.CONF.bindir, kind)
+    if not os.path.exists(binding_exec_path):
+        raise exceptions.BindingNotSupportedFailure(
+            "vif_type({0}) is not supported. An unbinding script for this"
+            "type can't be found".format(kind))
+    stdout, stderr = processutils.execute(
+        unbinding_exec_path, constants.UNBINDING_SUBCOMMAND, port_id, ifname,
+        endpoint_id, hwaddr, vif_details, net_id, run_as_root=True,
+        root_helper=ROOT_HELPER)
     return (stdout, stderr)
 
 
